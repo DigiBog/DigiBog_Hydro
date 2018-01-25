@@ -1,0 +1,56 @@
+#Makefile for DigiBog coupled 1D decomposition and 2D hydrological models
+#Dylan Young
+#Date: 22nd July 2014
+#Version 1.1
+#NOTE: Dealing with *.mod files
+#See attached links for dealing with *.mod files and addition of lines 38 and 42
+#https://gcc.gnu.org/bugzilla/show_bug.cgi?id=47495#c6
+#http://lists.gnu.org/archive/html/help-make/2011-01/msg00103.html
+#I can't add %.mod: %.o because the module file isn't named in the same way as 
+#the *.o file.
+#===============================================================================
+
+#Version of Fortran to use and compiler flags
+#Set the machine
+SYSTEM:= $(shell domainname)
+
+#If at Leeds then use fbounds-check as a compiler flag
+ifeq ($(SYSTEM), see.leeds.ac.uk)
+    FC = gfortran
+    FCFLAGS = -c -Wall -fbounds-check -g
+  else
+    FC = gfortran
+    FCFLAGS = -c -Wall -fcheck=all -g
+  endif
+
+#Executable name
+NAME = DigiBog_hydro.debug
+
+#Read in source (f90) files and identify as object files
+OBJECT1 := $(patsubst %.f90, %.o, $(wildcard DigiBog_Hydro*_procs*.f90)) 
+OBJECT2 := $(patsubst %.f90, %.o, $(wildcard DigiBog_Hydro*_main*.f90)) 
+MOD = $(wildcard *.mod)
+
+#Main program
+all: $(NAME)
+
+#Dependencies
+$(NAME): $(OBJECT1) $(OBJECT2)
+$(OBJECT2): $(OBJECT1)
+
+#Link object files
+$(NAME):
+	$(FC) $(LDFLAGS) $^ -o $@
+
+#Compile f90 files into object files
+%.o: %.f90
+	$(FC) $(FCFLAGS) $< -o $@
+	#touch $(MOD)
+$(MOD): $(OBJECT1)
+	@true
+
+#File extensions for '$ make clean'
+.PHONY: clean 
+
+clean:
+	rm -f $(NAME) *.mod *.o
