@@ -1,8 +1,7 @@
 *.o
 *.mod
 *.debug
+*.run
 hydro_y_indices.txt
 hydro_x_indices.txt
 hydro_wt_output.txt
-DB_H
-

@@ -1,17 +1,16 @@
-#Makefile for DigiBog coupled 1D decomposition and 2D hydrological models
+#Makefile for DigiBog_Hydro 3-D hydrological model
 #Dylan Young
 #Date: 22nd July 2014
 #Version 1.1.1
 #Revised: 10th June 2023
-#Makefile for debugging
+#Makefile optimises for run time
 #===============================================================================
 #Set the compiler
 FC := gfortran
 #Version of Fortran to use and compiler flags
-FCFLAGS = -g -O0 -Wall -Wextra -pedantic -fcheck=all -fbacktrace -Wno-uninitialized -c
-
+FCFLAGS = -c -Wall -Wextra -Wimplicit-interface -fPIC -fmax-errors=1 -O2 -march=native -ffast-math -funroll-loops -Wno-uninitialized
 #Executable name
-NAME = DigiBog_hydro.debug
+NAME = DigiBog_hydro.run
 
 #Read in source (f90) files and identify as object files
 OBJECT1 := $(patsubst %.f90, %.o, $(wildcard DigiBog_Hydro*_procs*.f90)) 
