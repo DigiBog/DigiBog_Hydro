@@ -150,13 +150,12 @@ PROGRAM DigiBog_Hydro
   !http://research.metoffice.gov.uk/research/nwp/numerical/fortran90/
           !f90_standards.html
 
+  !Declarations
+
   !Modules used
   USE hydro_procedures
 
   IMPLICIT NONE
-
-  !Declarations
-
 
   !Global/local scalars
   INTEGER :: alloc_error, &     !Internal array allocation error flag
