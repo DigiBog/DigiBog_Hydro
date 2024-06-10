@@ -1,38 +1,56 @@
 PROGRAM DigiBog_Hydro
 
+
 !Version: 27/08/2013
+
+!== Software licence ===========================================================
+!DigiBog_Hydro. Copyright (c) 2013  See authors details below.
+
+!    This program is free software: you can redistribute it and/or modify
+!    it under the terms of the gnu General Public License as published by
+!    the Free Software Foundation, either version 3 of the License, or
+!    (at your option) any later version.
+
+!    This program is distributed in the hope that it will be useful,
+!    but without any warranty; without even the implied warranty of
+!    merchantability or fitness for a particular purpose.  See the
+!    gnu General Public License for more details.
+
+!    You should have received a copy of the gnu General Public License
+!    along with this program.  If not, see https://www.gnu.org/licenses/
+!===============================================================================
 
 !-------------------------------------------------------------------------------
 ! Section 1.0 Program header
 !-------------------------------------------------------------------------------
 
-  !Description 
+  !Description
   !A model to simulate water tables in ombrotrophic bogs and other shallow
   !aquifers using the Boussinesq equation. The model uses centimetres and
   !seconds. Details of how the model works may be obtained from the code
   !owners (email addresses below).
- 
+
   !Current code owners
   !Paul J. Morris, Andy J. Baird*, and Lisa R. Belyea
-  !*School of Geography 
-  !University of Leeds 
+  !*School of Geography
+  !University of Leeds
   !Leeds
   !LS2 9JT
   !p.j.morris@reading.ac.uk
   !a.j.baird@leeds.ac.uk
   !l.belyea@qmul.ac.uk
-     
-  !Modification history of code 
+
+  !Modification history of code
   !Programmer           Date           Modifications
   !============================================================================
   !Andrew J. Baird      08/04/2005     Original 1.5-d code
   !----------------------------------------------------------------------------
-  !Paul J. Morris       24/02/2006     Conversion to 2.5-d and Fortran 
+  !Paul J. Morris       24/02/2006     Conversion to 2.5-d and Fortran
   !                                    Standards implemented
   !----------------------------------------------------------------------------
   !Paul J. Morris       27/02/2006     Testing, minor corrections
   !----------------------------------------------------------------------------
-  !Paul J. Morris       05/03/2006     Subroutines 'column_activation' and 
+  !Paul J. Morris       05/03/2006     Subroutines 'column_activation' and
   !                                    'steady_state_check' written. Former
   !                                    no longer exists (removed 18/07/2013).
   !----------------------------------------------------------------------------
@@ -44,12 +62,12 @@ PROGRAM DigiBog_Hydro
   !                                    replicated spatial step reference in
   !                                    'move_water' subroutine
   !----------------------------------------------------------------------------
-  !Paul J. Morris       09/05/2007     Above-ground storage facilitated in 
+  !Paul J. Morris       09/05/2007     Above-ground storage facilitated in
   !                                    2.5-d version
   !----------------------------------------------------------------------------
   !Paul J. Morris       02/07/2008     Final code cleaning, full annotation
   !----------------------------------------------------------------------------
-  !Andy J. Baird        18/07/2013     Addition of variable net rainfall read 
+  !Andy J. Baird        18/07/2013     Addition of variable net rainfall read
   !                                    in from file. Change to how boundary
   !                                    conditions specified; zero-flow
   !                                    Neumann condition also now allowed for,
@@ -62,10 +80,10 @@ PROGRAM DigiBog_Hydro
   !                                    from 18/07/2013
   !----------------------------------------------------------------------------
 
-  !Model data 
-    
-  !Input files 
-  !All input files are read by the main program, before any subroutines are 
+  !Model data
+
+  !Input files
+  !All input files are read by the main program, before any subroutines are
   !called. These input files must be in the same folder as the project file
   !and all source files. The input files are:
 
@@ -73,23 +91,23 @@ PROGRAM DigiBog_Hydro
   !This file contains all the scalar parameters used in the model
 
   !hydro_no_layers.txt
-  !This file contains the number of layers to be used in each vertical, 
-  !square-sectioned column. Sorted in order of x, then y (i.e., for each x 
+  !This file contains the number of layers to be used in each vertical,
+  !square-sectioned column. Sorted in order of x, then y (i.e., for each x
   !poaition, values for all y positions are given before moving onto next x).
 
   !hydro_thickness.txt
-  !This file contains the vertical thickness of each peat layer which makes 
-  !up the model aquifer. Sorted in order of x, then y, then z (i.e., one 
+  !This file contains the vertical thickness of each peat layer which makes
+  !up the model aquifer. Sorted in order of x, then y, then z (i.e., one
   !layer at a time, from bottom to top of each column).
 
   !hydro_k.txt
-  !This file contains the hydraulic conductivity of each peat layer which 
+  !This file contains the hydraulic conductivity of each peat layer which
   !makes up the model aquifer. Sorted in order of x, then y, then z (i.e., one
   !layer at a time, from bottom to top of each column).
 
   !hydro_s.txt
-  !This file contains the drainable porosity of each peat layer which makes 
-  !up the model aquifer. Sorted in order of x, then y, then z (i.e., one 
+  !This file contains the drainable porosity of each peat layer which makes
+  !up the model aquifer. Sorted in order of x, then y, then z (i.e., one
   !layer at a time, from bottom to top of each column).
 
   !hydro_column_status.txt
@@ -103,43 +121,44 @@ PROGRAM DigiBog_Hydro
 
   !hydro_baltitude.txt
   !This file contains the base altitude for each column, allowing the user
-  !to represent a sloping or uneven substrate if necessary. Sorted in 
+  !to represent a sloping or uneven substrate if necessary. Sorted in
   !order of x, then y.
-     
+
   !hydro_net_rainfall.txt
   !This file contains daily net rainfall for each day of the simulation
 
-  !Output files 
-  !Three output files are used, as follows 
- 
+  !Output files
+  !Three output files are used, as follows
+
   !hydro_wt_output.txt
-  !This file records the water-table position, relative to the impermeable 
+  !This file records the water-table position, relative to the impermeable
   !base, at the end of each write-out period
- 
+
   !hydro_x_indices.txt
-  !This file records the x position of each column, at the end of the 
-  !model run, in order to allow the user to plot the water-table data in an 
+  !This file records the x position of each column, at the end of the
+  !model run, in order to allow the user to plot the water-table data in an
   !(x, y, z) triplet
- 
+
   !hydro_y_indices.txt
-  !This file records the y position of each column, at the end of the 
-  !model run, in order to allow the user to plot the water-table data in an 
+  !This file records the y position of each column, at the end of the
+  !model run, in order to allow the user to plot the water-table data in an
   !(x, y, z) triplet
-        
-  !Code description 
-  !Language: Fortran 95 
+
+  !Code description
+  !Language: Fortran 95
   !Software standards: "UK Meteorological Office Fortran 90 Standards".
   !http://research.metoffice.gov.uk/research/nwp/numerical/fortran90/
           !f90_standards.html
 
-  !Declarations
- 
   !Modules used
   USE hydro_procedures
 
-  IMPLICIT NONE 
- 
-  !Global/local scalars 
+  IMPLICIT NONE
+
+  !Declarations
+
+
+  !Global/local scalars
   INTEGER :: alloc_error, &     !Internal array allocation error flag
              t_extent, &        !Length of simulation in timesteps
              output_interval, & !Output interval in timesteps
@@ -147,14 +166,14 @@ PROGRAM DigiBog_Hydro
              time_counter, &    !Counter for use in main model loop
              output_counter, &  !Output counter for main model loop
              rain_counter, &    !Counter to check for update to rainfall
-             x_extent, &        !Model grid extent in x direction                       
-             y_extent, &        !Model grid extent in y direction   
-             z_extent, &        !Max number of layers per column                    
-             x, &               !Spatial index counter                                   
-             y, &               !Spatial index counter                                   
+             x_extent, &        !Model grid extent in x direction
+             y_extent, &        !Model grid extent in y direction
+             z_extent, &        !Max number of layers per column
+             x, &               !Spatial index counter
+             y, &               !Spatial index counter
              z, &               !Spatial index counter
              steady_columns     !Threshold number of steady columns
-  
+
   REAL(KIND=q) :: timestep, &         !Model temporal hincrement
                   spatial_step, &     !Model horizontal increment
                   rainfall, &         !Net rainfall (P-E)
@@ -164,7 +183,7 @@ PROGRAM DigiBog_Hydro
   CHARACTER(LEN=1) :: param_error  !Internal parameter error flag
 
   CHARACTER(LEN=9) :: hydro_status !Indicates model is steady or transient
-  
+
   CHARACTER(LEN=25) :: data_file_name_1, &  !Parameter input file
                        data_file_name_2, &  !No. layers input file
                        data_file_name_3, &  !Layer thickness input file
@@ -177,10 +196,10 @@ PROGRAM DigiBog_Hydro
                        data_file_name_10, & !WT output file
                        data_file_name_11, & !x coordinates output file
                        data_file_name_12    !y coordinates output file
-      
+
   !Global/local arrays
   INTEGER, ALLOCATABLE, DIMENSION(:,:) :: no_layers !Number of layers per column
- 
+
   REAL(KIND=q), ALLOCATABLE, DIMENSION(:,:) :: base_altitude, & !Above datum
                                                water_change, &
                                                water_table, &   !Above base
@@ -189,19 +208,19 @@ PROGRAM DigiBog_Hydro
   !layer_attributes stores layer thickness, K and s
   !transmissivity stores layer elevation above base and transmissivity
   !layer_storage stores layer elevation above base and each layer's water
-  !capacity as volume per unit area; i.e. expressed as a depth  
+  !capacity as volume per unit area; i.e. expressed as a depth
   REAL(KIND=q), ALLOCATABLE, DIMENSION(:,:,:,:) :: layer_attributes, &
                                                    transmissivity, &
-                                                   layer_storage 
-  
+                                                   layer_storage
+
   !activation_status indicates whether/how column participates in simulation
   CHARACTER(8), ALLOCATABLE, DIMENSION(:,:) :: activation_status
-  
+
 
 !-------------------------------------------------------------------------------
 ! Section 2.0 Data input and initialisation
 !-------------------------------------------------------------------------------
-  
+
   !Name input data files and output data file
   data_file_name_1  = "hydro_parameters.txt"
   data_file_name_2  = "hydro_no_layers.txt"
@@ -215,7 +234,7 @@ PROGRAM DigiBog_Hydro
   data_file_name_10 = "hydro_wt_output.txt"
   data_file_name_11 = "hydro_x_indices.txt"
   data_file_name_12 = "hydro_y_indices.txt"
-  
+
   !Open files for input of data and file for output of data
   OPEN(UNIT=10,  FILE=data_file_name_1,  STATUS="OLD")
   OPEN(UNIT=20,  FILE=data_file_name_2,  STATUS="OLD")
@@ -229,7 +248,21 @@ PROGRAM DigiBog_Hydro
   OPEN(UNIT=100, FILE=data_file_name_10, STATUS="REPLACE")
   OPEN(UNIT=110, FILE=data_file_name_11, STATUS="REPLACE")
   OPEN(UNIT=120, FILE=data_file_name_12, STATUS="REPLACE")
-  
+
+
+  !Licence statement -----------------------------------------------------------
+  print *
+  print *,  "DigiBog_Hydro  Copyright (c) 2013 the authors. ", &
+    "This program comes with absolutely NO WARRANTY; for details see the ", &
+    "included licence. This is free software, and you are welcome to ", &
+    "redistribute it under certain conditions; for details see the ", &
+    "included licence."
+  print *
+  !-----------------------------------------------------------------------------
+  print *, "Press Enter to accept and continue"
+  read( *, * )
+
+
   !Read data from parameter file
   READ (10, *) t_extent
   READ (10, *) output_interval
@@ -274,7 +307,7 @@ PROGRAM DigiBog_Hydro
     WRITE (*, *) "Model could not allocate space for no_layers"
     STOP
   END IF
-  
+
   ALLOCATE(base_altitude(x_extent, y_extent), STAT=alloc_error)
   IF (alloc_error /= 0) THEN
     WRITE (*, *) "Model could not allocate space for base_altitude"
@@ -292,7 +325,7 @@ PROGRAM DigiBog_Hydro
     WRITE (*, *) "Model could not allocate space for water_table"
     STOP
   END IF
-  
+
   ALLOCATE(wk_mean(x_extent, y_extent), STAT=alloc_error)
   IF (alloc_error /= 0) THEN
     WRITE (*, *) "Model could not allocate space for wk_mean"
@@ -305,14 +338,14 @@ PROGRAM DigiBog_Hydro
     WRITE (*, *) "Model could not allocate space for layer_attributes"
     STOP
   END IF
-  
+
   ALLOCATE(transmissivity(x_extent, y_extent, z_extent, 2), STAT = alloc_error)
   IF (alloc_error /= 0) THEN
     WRITE (*, *) "Model could not allocate space for transmissivity"
     STOP
   END IF
-  
-  ALLOCATE(layer_storage(x_extent, y_extent, z_extent, 2), STAT = alloc_error)                                                     
+
+  ALLOCATE(layer_storage(x_extent, y_extent, z_extent, 2), STAT = alloc_error)
   IF (alloc_error /= 0) THEN
     WRITE (*, *) "Model could not allocate space for layer_storage"
     STOP
@@ -335,7 +368,7 @@ PROGRAM DigiBog_Hydro
       READ (80, *) base_altitude(x, y)
     END DO
   END DO
- 
+
   !Initialise layer_attributes
   layer_attributes = 0.0
 
@@ -347,7 +380,7 @@ PROGRAM DigiBog_Hydro
       layer_attributes(x, y, no_layers(x, y), 3) = 0.9
     END DO
   END DO
-  
+
   !Read data from layer files to rank-four array
   DO x = 1, x_extent
     DO y = 1, y_extent
@@ -357,26 +390,26 @@ PROGRAM DigiBog_Hydro
         READ (50, *) layer_attributes(x, y, z, 3)
       END DO
     END DO
-  END DO 
+  END DO
 
   !Initialise remaining arrays
   water_change = 1.0
   wk_mean = 1.0
   transmissivity = 1.0
   layer_storage = 1.0
-  
+
   !Initialise elapsed time
   time_counter = 0
-  
+
   !Initialise check counter for write out
   output_counter = 0
-  
+
   !Calculate value of timestep in seconds
   timestep = (1.0/(REAL(daily_timesteps))) * 86400.0
-  
+
   !Read first net rainfall rate
   READ (090, *) rainfall
-  
+
   !Initialise rain counter
   rain_counter = 0
 
@@ -392,16 +425,16 @@ PROGRAM DigiBog_Hydro
   !layer within each column
   CALL layer_water_depth(x_extent, y_extent, no_layers, layer_attributes, &
                          layer_storage, activation_status)
-  
+
 
   !Start of hydrological loop
   DO
-  
+
     !(Re-)calculate the depth-averaged K below the water table for each column
     CALL wat_k_mean(x_extent, y_extent, no_layers, water_table, wk_mean, &
                     layer_attributes, transmissivity, activation_status)
 
-    !Calculate the amount of water (expressed as a depth) that moves between 
+    !Calculate the amount of water (expressed as a depth) that moves between
     !each column. The flow law is based on the Boussinesq equation.
     CALL move_water(x_extent, y_extent, timestep, spatial_step, rainfall, &
                     base_altitude, water_change, water_table, wk_mean, &
@@ -410,7 +443,7 @@ PROGRAM DigiBog_Hydro
     !Check for steady-state hydrological behaviour
     !CALL steady_state_check(x_extent, y_extent, steady_columns, &
                         !steady_threshold, hydro_status, water_change, &
-                            !activation_status) 
+                            !activation_status)
 
     !Update position of the water table in each column
     CALL water_table_update(x_extent, y_extent, no_layers, water_change, &
@@ -441,7 +474,7 @@ PROGRAM DigiBog_Hydro
     IF (time_counter == t_extent) THEN
       EXIT
     END IF
-    
+
     !Update rainfall rate
     rain_counter = rain_counter + 1
     IF (rain_counter == daily_timesteps) THEN
@@ -450,7 +483,7 @@ PROGRAM DigiBog_Hydro
       !Read next value of rainfall
       READ (090, *) rainfall
     END IF
-     
+
     !Terminate model run if steady-state has been reached
     !Note: 23.08.13. Add some on-screen confirmation here?
     IF (hydro_status == "steady") THEN
@@ -471,7 +504,7 @@ PROGRAM DigiBog_Hydro
     END DO
   END DO
 
-    
+
 END PROGRAM DigiBog_Hydro
 
 !-------------------------------------------------------------------------------
