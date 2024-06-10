@@ -8,8 +8,8 @@ can be used with the interface.
 
 Two makefiles are included that work with GNU Make. One (Make_hydro_run)
 produces an optimised version of the model code to improve runtimes. The second
-(Make_hydro_debug) is for debugging. The command make -f [filename] creates the
-executables and make -f [filename] clean removes the executable and *.o and
+(Make_hydro_debug) is for debugging. The command "make -f _[filename]_" creates the
+executables and "make -f _[filename]_ clean" removes the executable and *.o and
 *.mod files.
 
 Please note this repository is for DigiBog_Hydro: this model does not simulate
