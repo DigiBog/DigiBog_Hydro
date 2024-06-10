@@ -6,6 +6,12 @@ developed to work with the DigiBog_Hydro model code. Those interfaces should
 direct a user here for the model code or provide a pre-compiled binary that
 can be used with the interface.
 
+Two makefiles are included that work with GNU Make. One (Make_hydro_run)
+produces an optimised version of the model code to improve runtimes. The second
+(Make_hydro_debug) is for debugging. The command make -f [filename] creates the
+executables and make -f [filename] clean removes the executable and *.o and
+*.mod files.
+
 Please note this repository is for DigiBog_Hydro: this model does not simulate
 the accumulation or loss of peat. It can simulate water-table dynamics over 
 peatland landscapes and can be used to explore how different types of management 
