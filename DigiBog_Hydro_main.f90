@@ -1,7 +1,6 @@
 PROGRAM DigiBog_Hydro
 
-
-!Version: 27/08/2013
+!Version: 17/10/2024
 
 !== Software licence ===========================================================
 !DigiBog_Hydro. Copyright (c) 2013  See authors details below.
@@ -79,6 +78,8 @@ PROGRAM DigiBog_Hydro
   !Andy J. Baird        27/08/2013     Code cleaning and de-bugging of version
   !                                    from 18/07/2013
   !----------------------------------------------------------------------------
+  !Dylan M. Young       17/10/2024     Added aet function to hydro_procedures
+  !----------------------------------------------------------------------------
 
   !Model data
 
@@ -124,8 +125,8 @@ PROGRAM DigiBog_Hydro
   !to represent a sloping or uneven substrate if necessary. Sorted in
   !order of x, then y.
 
-  !hydro_net_rainfall.txt
-  !This file contains daily net rainfall for each day of the simulation
+  !hydro_rainfall.txt
+  !This file contains daily rainfall for each day of the simulation
 
   !Output files
   !Three output files are used, as follows
@@ -175,7 +176,10 @@ PROGRAM DigiBog_Hydro
 
   REAL(KIND=q) :: timestep, &         !Model temporal hincrement
                   spatial_step, &     !Model horizontal increment
-                  rainfall, &         !Net rainfall (P-E)
+                  rainfall, &         !Rrainfall
+                  pet,      &         !Potential evapotranspiration
+                  n_aet,    &         !Defines the shape of aet extinction fun
+                  aet_extinct, &      !Depth at which aet = 0
                   pond_depth, &       !Depth of surface ponding
                   steady_threshold    !Steady-state criterion per column
 
@@ -191,10 +195,11 @@ PROGRAM DigiBog_Hydro
                        data_file_name_6, &  !Activation status file
                        data_file_name_7, &  !Column WTs / BCs input file
                        data_file_name_8, &  !Base altitude input file
-                       data_file_name_9, &  !Net rainfall rate for each day
+                       data_file_name_9, &  !Rainfall rate for each day
                        data_file_name_10, & !WT output file
                        data_file_name_11, & !x coordinates output file
-                       data_file_name_12    !y coordinates output file
+                       data_file_name_12, & !y coordinates output file
+                       data_file_name_13    !Potential evapotranspiration
 
   !Global/local arrays
   INTEGER, ALLOCATABLE, DIMENSION(:,:) :: no_layers !Number of layers per column
@@ -229,10 +234,11 @@ PROGRAM DigiBog_Hydro
   data_file_name_6  = "hydro_column_status.txt"
   data_file_name_7  = "hydro_wt_bc_input.txt"
   data_file_name_8  = "hydro_baltitude.txt"
-  data_file_name_9  = "hydro_net_rainfall.txt"
+  data_file_name_9  = "hydro_rainfall.txt"
   data_file_name_10 = "hydro_wt_output.txt"
   data_file_name_11 = "hydro_x_indices.txt"
   data_file_name_12 = "hydro_y_indices.txt"
+  data_file_name_13 = "hydro_pet.txt"
 
   !Open files for input of data and file for output of data
   OPEN(UNIT=10,  FILE=data_file_name_1,  STATUS="OLD")
@@ -247,6 +253,7 @@ PROGRAM DigiBog_Hydro
   OPEN(UNIT=100, FILE=data_file_name_10, STATUS="REPLACE")
   OPEN(UNIT=110, FILE=data_file_name_11, STATUS="REPLACE")
   OPEN(UNIT=120, FILE=data_file_name_12, STATUS="REPLACE")
+  OPEN(UNIT=120, FILE=data_file_name_12, STATUS="OLD")
 
 
   !Licence statement -----------------------------------------------------------
@@ -273,6 +280,8 @@ PROGRAM DigiBog_Hydro
   READ (10, *) spatial_step
   READ (10, *) pond_depth
   READ (10, *) steady_threshold
+  read (10, *) n_aet
+  read (10, *) aet_extinct
 
   !Error check on data
   WRITE (*, *) "The following parameter values have been read from ", &
@@ -287,6 +296,8 @@ PROGRAM DigiBog_Hydro
   WRITE (*, '(A19, F7.2, A3)')"spatial step =     ", spatial_step, " cm"
   WRITE (*, '(A19, F7.2, A3)')"ponding depth =    ", pond_depth, " cm"
   WRITE (*, '(A19, F6.3, A3)')"steady threshold = ", steady_threshold, " cm"
+  WRITE (*, '(A19, F6.3, A3)')"AET ext. param. = ", steady_threshold, "unitless"
+  WRITE (*, '(A19, F6.3, A3)')"AET ext. depth = ", steady_threshold, "cm"
   WRITE (*, '(A31)') "Are these values correct (Y/N)?"
   READ *, param_error
   SELECT CASE (param_error)
@@ -408,6 +419,7 @@ PROGRAM DigiBog_Hydro
 
   !Read first net rainfall rate
   READ (090, *) rainfall
+  READ (120, *) pet
 
   !Initialise rain counter
   rain_counter = 0
@@ -481,6 +493,7 @@ PROGRAM DigiBog_Hydro
       rain_counter = 0
       !Read next value of rainfall
       READ (090, *) rainfall
+      READ (120, *) pet
     END IF
 
     !Terminate model run if steady-state has been reached

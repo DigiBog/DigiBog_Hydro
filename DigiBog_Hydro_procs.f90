@@ -17,8 +17,22 @@ MODULE hydro_procedures
   !range from 10**30 to 10**(-30)
   INTEGER, PARAMETER :: q = SELECTED_REAL_KIND(P = 8, R = 30)
 
-  CONTAINS
+  contains
 
+  !Function to calculate AET
+  function aet(wtd, pet, n_aet, aet_extinct) result(aet_calc)
+    real(kind=q), intent(in) :: wtd, pet, n_aet, aet_extinct
+    !Locals
+    real(kind=q) :: evap_prop, z_wtd, aet_calc, effective_wtd
+
+    ! Use the maximum of wtd and 0 to exclude negative water-table depths
+    effective_wtd = max(0.0_q, wtd)
+
+    ! Normalize depth to the range [0, 1] where aet_extinct is 1
+    z_wtd = effective_wtd / aet_extinct
+    evap_prop = max(0.0_q, 1.0_q - (z_wtd**n_aet))
+    aet_calc = evap_prop * pet
+  end function aet
 
 !-------------------------------------------------------------------------------
 ! Section 2.0   Initial transmissivity calculations
@@ -348,10 +362,20 @@ MODULE hydro_procedures
     DO x = 2, (x_extent - 1)
       DO y = 2, (y_extent - 1)
         IF (activation_status(x, y) == "on") THEN
-           water_change(x, y) = (x_flux(x - 1, y) - x_flux(x ,y) &
+
+          !Calculate aet
+          block
+            real(kind=q) :: wtd, peat_surf, net_rainfall
+            peat_surf = layer_storage(x, y, (no_layers(x, y) - 1), 1)
+            wtd = peat_surf - water_table(x, y)
+            net_rainfall = rainfall - aet(wtd, pet, n_aet, aet_extinct)
+
+            water_change(x, y) = (x_flux(x - 1, y) - x_flux(x ,y) &
                               +  y_flux(x, y - 1) - y_flux(x ,y)) &
                               / (spatial_step ** 2)
-          water_change(x, y) = water_change(x, y) + (rainfall * timestep)
+            water_change(x, y) = water_change(x, y) + (net_rainfall * timestep)
+          end block
+
         END IF
       END DO
     END DO
