@@ -448,8 +448,9 @@ PROGRAM DigiBog_Hydro
     !Calculate the amount of water (expressed as a depth) that moves between
     !each column. The flow law is based on the Boussinesq equation.
     CALL move_water(x_extent, y_extent, timestep, spatial_step, rainfall, &
-                    base_altitude, water_change, water_table, wk_mean, &
-                    activation_status)
+                        base_altitude, water_change, water_table, wk_mean, &
+                        activation_status, no_layers, layer_storage, pet, &
+                        n_aet, aet_extinct)
 
     !Check for steady-state hydrological behaviour
     !CALL steady_state_check(x_extent, y_extent, steady_columns, &

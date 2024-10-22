@@ -232,7 +232,8 @@ MODULE hydro_procedures
 
   SUBROUTINE move_water(x_extent, y_extent, timestep, spatial_step, rainfall, &
                         base_altitude, water_change, water_table, wk_mean, &
-                        activation_status)
+                        activation_status, no_layers, layer_storage, pet, &
+                        n_aet, aet_extinct)
 
     !This subroutine calculates the net movement of water (expressed as a depth)
     !between columns. It is assumed that a harmonic mean operates between the
@@ -248,12 +249,16 @@ MODULE hydro_procedures
 
     !Scalar arguments with INTENT(IN)
     INTEGER, INTENT(IN) :: x_extent, y_extent
-    REAL(KIND=q), INTENT(IN) :: spatial_step, timestep, rainfall
+    REAL(KIND=q), INTENT(IN) :: spatial_step, timestep, rainfall, pet, n_aet, &
+                                aet_extinct
 
     !Array arguments with INTENT(IN)
     REAL(KIND=q), DIMENSION(:,:), INTENT(IN) :: base_altitude, water_table, &
                                                 wk_mean
     CHARACTER(8), DIMENSION(:,:), INTENT(IN) :: activation_status
+
+    integer, dimension(:,:), intent(in) :: no_layers
+    real(kind=q), dimension(:,:,:,:), intent(in) :: layer_storage
 
     !Array arguments with INTENT(INOUT)
     REAL(KIND=q), DIMENSION(:,:), INTENT(INOUT) :: water_change
@@ -362,7 +367,6 @@ MODULE hydro_procedures
     DO x = 2, (x_extent - 1)
       DO y = 2, (y_extent - 1)
         IF (activation_status(x, y) == "on") THEN
-
           !Calculate aet
           block
             real(kind=q) :: wtd, peat_surf, net_rainfall
@@ -375,7 +379,6 @@ MODULE hydro_procedures
                               / (spatial_step ** 2)
             water_change(x, y) = water_change(x, y) + (net_rainfall * timestep)
           end block
-
         END IF
       END DO
     END DO
