@@ -5,3 +5,4 @@
 hydro_y_indices.txt
 hydro_x_indices.txt
 hydro_wt_output.txt
+*.exe

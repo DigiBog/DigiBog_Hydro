@@ -253,7 +253,7 @@ PROGRAM DigiBog_Hydro
   OPEN(UNIT=100, FILE=data_file_name_10, STATUS="REPLACE")
   OPEN(UNIT=110, FILE=data_file_name_11, STATUS="REPLACE")
   OPEN(UNIT=120, FILE=data_file_name_12, STATUS="REPLACE")
-  OPEN(UNIT=120, FILE=data_file_name_12, STATUS="OLD")
+  OPEN(UNIT=130, FILE=data_file_name_13, STATUS="OLD")
 
 
   !Licence statement -----------------------------------------------------------
@@ -296,8 +296,8 @@ PROGRAM DigiBog_Hydro
   WRITE (*, '(A19, F7.2, A3)')"spatial step =     ", spatial_step, " cm"
   WRITE (*, '(A19, F7.2, A3)')"ponding depth =    ", pond_depth, " cm"
   WRITE (*, '(A19, F6.3, A3)')"steady threshold = ", steady_threshold, " cm"
-  WRITE (*, '(A19, F6.3, A3)')"AET ext. param. = ", steady_threshold, "unitless"
-  WRITE (*, '(A19, F6.3, A3)')"AET ext. depth = ", steady_threshold, "cm"
+  WRITE (*, '(A19, F4.2, A9)')"AET ext. param. =   ", n_aet, " unitless"
+  WRITE (*, '(A19, f6.2, A3)')"AET ext. depth =    ", aet_extinct, " cm"
   WRITE (*, '(A31)') "Are these values correct (Y/N)?"
   READ *, param_error
   SELECT CASE (param_error)
@@ -419,7 +419,7 @@ PROGRAM DigiBog_Hydro
 
   !Read first net rainfall rate
   READ (090, *) rainfall
-  READ (120, *) pet
+  READ (130, *) pet
 
   !Initialise rain counter
   rain_counter = 0
@@ -494,7 +494,7 @@ PROGRAM DigiBog_Hydro
       rain_counter = 0
       !Read next value of rainfall
       READ (090, *) rainfall
-      READ (120, *) pet
+      READ (130, *) pet
     END IF
 
     !Terminate model run if steady-state has been reached
