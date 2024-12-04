@@ -176,7 +176,7 @@ PROGRAM DigiBog_Hydro
 
   REAL(KIND=q) :: timestep, &         !Model temporal hincrement
                   spatial_step, &     !Model horizontal increment
-                  rainfall, &         !Rrainfall
+                  rainfall, &         !Rainfall
                   pet,      &         !Potential evapotranspiration
                   n_aet,    &         !Defines the shape of aet extinction fun
                   aet_extinct, &      !Depth at which aet = 0
@@ -241,19 +241,19 @@ PROGRAM DigiBog_Hydro
   data_file_name_13 = "hydro_pet.txt"
 
   !Open files for input of data and file for output of data
-  OPEN(UNIT=10,  FILE=data_file_name_1,  STATUS="OLD")
-  OPEN(UNIT=20,  FILE=data_file_name_2,  STATUS="OLD")
-  OPEN(UNIT=30,  FILE=data_file_name_3,  STATUS="OLD")
-  OPEN(UNIT=40,  FILE=data_file_name_4,  STATUS="OLD")
-  OPEN(UNIT=50,  FILE=data_file_name_5,  STATUS="OLD")
-  OPEN(UNIT=60,  FILE=data_file_name_6,  STATUS="OLD")
-  OPEN(UNIT=70,  FILE=data_file_name_7,  STATUS="OLD")
-  OPEN(UNIT=80,  FILE=data_file_name_8,  STATUS="OLD")
-  OPEN(UNIT=90,  FILE=data_file_name_9,  STATUS="OLD")
-  OPEN(UNIT=100, FILE=data_file_name_10, STATUS="REPLACE")
-  OPEN(UNIT=110, FILE=data_file_name_11, STATUS="REPLACE")
-  OPEN(UNIT=120, FILE=data_file_name_12, STATUS="REPLACE")
-  OPEN(UNIT=130, FILE=data_file_name_13, STATUS="OLD")
+  open(unit=10,  file=data_file_name_1,  status="old")
+  open(unit=20,  file=data_file_name_2,  status="old")
+  open(unit=30,  file=data_file_name_3,  status="old")
+  open(unit=40,  file=data_file_name_4,  status="old")
+  open(unit=50,  file=data_file_name_5,  status="old")
+  open(unit=60,  file=data_file_name_6,  status="old")
+  open(unit=70,  file=data_file_name_7,  status="old")
+  open(unit=80,  file=data_file_name_8,  status="old")
+  open(unit=90,  file=data_file_name_9,  status="old")
+  open(unit=100, file=data_file_name_10, status="replace")
+  open(unit=110, file=data_file_name_11, status="replace")
+  open(unit=120, file=data_file_name_12, status="replace")
+  open(unit=130, file=data_file_name_13, status="old")
 
 
   !Licence statement -----------------------------------------------------------

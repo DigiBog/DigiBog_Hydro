@@ -318,7 +318,7 @@ MODULE hydro_procedures
                        * timestep
         END IF
       END DO
-      END DO
+    END DO
 
     !Volume 'flux' (in y direction) between columns using Dupuit-Forchheimer
     !approximation
