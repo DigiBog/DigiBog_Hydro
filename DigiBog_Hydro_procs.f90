@@ -233,7 +233,7 @@ MODULE hydro_procedures
   SUBROUTINE move_water(x_extent, y_extent, timestep, spatial_step, rainfall, &
                         base_altitude, water_change, water_table, wk_mean, &
                         activation_status, no_layers, layer_storage, pet, &
-                        n_aet, aet_extinct)
+                        n_aet, aet_extinct, is_gully)
 
     !This subroutine calculates the net movement of water (expressed as a depth)
     !between columns. It is assumed that a harmonic mean operates between the
@@ -263,6 +263,9 @@ MODULE hydro_procedures
     !Array arguments with INTENT(INOUT)
     REAL(KIND=q), DIMENSION(:,:), INTENT(INOUT) :: water_change
 
+    !Gully status
+    logical, dimension(:, :), intent(in) :: is_gully
+
     !Local scalars
     INTEGER :: x, y
 
@@ -272,10 +275,6 @@ MODULE hydro_procedures
 
     !-- End of subroutine header -----------------------------------------------
 
-
-
-
-    !Calculations
 
     !Volume 'flux' (in x direction) between columns using Dupuit-Forchheimer
     !approximation
@@ -371,8 +370,14 @@ MODULE hydro_procedures
           block
             real(kind=q) :: wtd, peat_surf, net_rainfall
             peat_surf = layer_storage(x, y, (no_layers(x, y) - 1), 1)
-            wtd = peat_surf - water_table(x, y)
-            net_rainfall = rainfall - aet(wtd, pet, n_aet, aet_extinct)
+
+            !Is the coulmn a gully?
+            if (.not. is_gully(x, y)) then
+              wtd = peat_surf - water_table(x, y)
+              net_rainfall = rainfall - aet(wtd, pet, n_aet, aet_extinct)
+            else
+              net_rainfall = rainfall - pet
+            end if
 
             water_change(x, y) = (x_flux(x - 1, y) - x_flux(x ,y) &
                               +  y_flux(x, y - 1) - y_flux(x ,y)) &

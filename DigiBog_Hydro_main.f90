@@ -199,9 +199,12 @@ PROGRAM DigiBog_Hydro
                        data_file_name_10, & !WT output file
                        data_file_name_11, & !x coordinates output file
                        data_file_name_12, & !y coordinates output file
-                       data_file_name_13    !Potential evapotranspiration
+                       data_file_name_13, & !Potential evapotranspiration
+                       data_file_name_14    !AET status for gully water
 
   !Global/local arrays
+  logical, allocatable, dimension(:, :) :: is_gully
+
   INTEGER, ALLOCATABLE, DIMENSION(:,:) :: no_layers !Number of layers per column
 
   REAL(KIND=q), ALLOCATABLE, DIMENSION(:,:) :: base_altitude, & !Above datum
@@ -219,6 +222,7 @@ PROGRAM DigiBog_Hydro
 
   !activation_status indicates whether/how column participates in simulation
   CHARACTER(8), ALLOCATABLE, DIMENSION(:,:) :: activation_status
+  integer, ALLOCATABLE, DIMENSION(:,:) :: gully_status
 
 
 !-------------------------------------------------------------------------------
@@ -239,6 +243,7 @@ PROGRAM DigiBog_Hydro
   data_file_name_11 = "hydro_x_indices.txt"
   data_file_name_12 = "hydro_y_indices.txt"
   data_file_name_13 = "hydro_pet.txt"
+  data_file_name_14 = "hydro_aet_status.txt"
 
   !Open files for input of data and file for output of data
   open(unit=10,  file=data_file_name_1,  status="old")
@@ -247,6 +252,7 @@ PROGRAM DigiBog_Hydro
   open(unit=40,  file=data_file_name_4,  status="old")
   open(unit=50,  file=data_file_name_5,  status="old")
   open(unit=60,  file=data_file_name_6,  status="old")
+  open(unit=65,  file=data_file_name_14, status="old")
   open(unit=70,  file=data_file_name_7,  status="old")
   open(unit=80,  file=data_file_name_8,  status="old")
   open(unit=90,  file=data_file_name_9,  status="old")
@@ -367,6 +373,18 @@ PROGRAM DigiBog_Hydro
     STOP
   END IF
 
+  ALLOCATE(gully_status(x_extent, y_extent), STAT=alloc_error)
+  IF (alloc_error /= 0) THEN
+    WRITE (*, *) "Model could not allocate space for gully status"
+    STOP
+  END IF
+
+  ALLOCATE(is_gully(x_extent, y_extent), STAT=alloc_error)
+  IF (alloc_error /= 0) THEN
+    WRITE (*, *) "Model could not allocate space for is_gully"
+    STOP
+  END IF
+
   !Read data from files to rank-two arrays
   DO x = 1, x_extent
     DO y = 1, y_extent
@@ -374,6 +392,7 @@ PROGRAM DigiBog_Hydro
       !Incorporate above-ground storage layer
       no_layers (x, y) = no_layers(x, y) + 1
       READ (60, *) activation_status(x, y)
+      READ (65, *) gully_status(x, y)
       READ (70, *) water_table(x, y)
       READ (80, *) base_altitude(x, y)
     END DO
@@ -381,6 +400,10 @@ PROGRAM DigiBog_Hydro
 
   !Initialise layer_attributes
   layer_attributes = 0.0
+
+  !Initialise is_gully
+  is_gully = .false.
+  is_gully = gully_status == 1
 
   DO x = 1, x_extent
     DO y = 1, y_extent
@@ -450,7 +473,7 @@ PROGRAM DigiBog_Hydro
     CALL move_water(x_extent, y_extent, timestep, spatial_step, rainfall, &
                         base_altitude, water_change, water_table, wk_mean, &
                         activation_status, no_layers, layer_storage, pet, &
-                        n_aet, aet_extinct)
+                        n_aet, aet_extinct, is_gully)
 
     !Check for steady-state hydrological behaviour
     !CALL steady_state_check(x_extent, y_extent, steady_columns, &
