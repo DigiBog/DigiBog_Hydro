@@ -183,6 +183,10 @@ PROGRAM DigiBog_Hydro
                   pond_depth, &       !Depth of surface ponding
                   steady_threshold    !Steady-state criterion per column
 
+  !Parameters
+  real(q), parameter :: k_pond
+  real(q), parameter :: s_pond
+
   CHARACTER(LEN=1) :: param_error  !Internal parameter error flag
 
   CHARACTER(LEN=9) :: hydro_status !Indicates model is steady or transient
@@ -386,8 +390,8 @@ PROGRAM DigiBog_Hydro
     DO y = 1, y_extent
       !Initialise above-ground storage layer properties
       layer_attributes(x, y, no_layers(x, y), 1) = pond_depth
-      layer_attributes(x, y, no_layers(x, y), 2) = 5
-      layer_attributes(x, y, no_layers(x, y), 3) = 0.9
+      layer_attributes(x, y, no_layers(x, y), 2) = k_pond
+      layer_attributes(x, y, no_layers(x, y), 3) = s_pond
     END DO
   END DO
 
