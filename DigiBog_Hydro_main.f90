@@ -186,6 +186,7 @@ PROGRAM DigiBog_Hydro
   !Parameters
   real(q), parameter :: k_pond
   real(q), parameter :: s_pond
+  real(q), parameter :: mins_per_day = 24 * 60 * 60
 
   CHARACTER(LEN=1) :: param_error  !Internal parameter error flag
 
@@ -419,7 +420,7 @@ PROGRAM DigiBog_Hydro
   output_counter = 0
 
   !Calculate value of timestep in seconds
-  timestep = (1.0/(REAL(daily_timesteps))) * 86400.0
+  timestep = (1.0_q/daily_timesteps) * mins_per_day
 
   !Read first net rainfall rate
   READ (090, *) rainfall
@@ -471,18 +472,22 @@ PROGRAM DigiBog_Hydro
     IF (output_counter == output_interval) THEN
       !Re-set output counter
       output_counter = 0
+
+      !Create temporary output array. The array will be allocated inside the IF
+      !statement and deallocated outside of it.
+      real(q), dimension(x_extent, y_extent) :: write_water
+
       !Write results to file
-      DO x = 1, x_extent
-        DO y = 1, y_extent
-          IF(activation_status (x,y) == "off" &
-             .OR. activation_status (x,y) == "diri" &
-             .OR. activation_status (x,y) == "neu") THEN
-            WRITE(100, '(20F20.8)') -999.0
-          ELSE
-            WRITE(100, '(20F20.8)') water_table(x,y)
-          END IF
-        END DO
-      END DO
+      where(activation_status != "on")
+        write_water = -999.0
+      elsewhere
+        write_water = water_table
+      end where
+
+      !Write the array (all ys for each x)
+      write(100, '(*(f20.8))') &
+        ((write_water(x, y), y = 1, y_extent), x = 1, x_extent)
+
     END IF
 
     !Update elapsed time and check for model termination
