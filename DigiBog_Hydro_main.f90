@@ -184,8 +184,8 @@ PROGRAM DigiBog_Hydro
                   steady_threshold    !Steady-state criterion per column
 
   !Parameters
-  real(q), parameter :: k_pond
-  real(q), parameter :: s_pond
+  real(q), parameter :: k_pond = 0.0
+  real(q), parameter :: s_pond = 1.0
   real(q), parameter :: mins_per_day = 24 * 60 * 60
 
   CHARACTER(LEN=1) :: param_error  !Internal parameter error flag
@@ -212,7 +212,8 @@ PROGRAM DigiBog_Hydro
   REAL(KIND=q), ALLOCATABLE, DIMENSION(:,:) :: base_altitude, & !Above datum
                                                water_change, &
                                                water_table, &   !Above base
-                                               wk_mean          !Depth-av. K
+                                               wk_mean, &       !Depth-av. K
+                                               write_water      !Temp array for water table
 
   !layer_attributes stores layer thickness, K and s
   !transmissivity stores layer elevation above base and transmissivity
@@ -477,19 +478,24 @@ PROGRAM DigiBog_Hydro
 
       !Create temporary output array. The array will be allocated inside the IF
       !statement and deallocated outside of it.
-      real(q), dimension(x_extent, y_extent) :: write_water
+      allocate(write_water(x_extent, y_extent))
 
       !Write results to file
-      where(activation_status != "on")
-        write_water = -999.0
-      elsewhere
-        write_water = water_table
-      end where
+      do x = 1, x_extent
+        do y = 1, y_extent
+          if (activation_status(x, y) /= "on") then
+            write_water(x, y) = -999.0
+          else
+            write_water(x, y) = water_table(x, y)
+          end if
+        end do
+      end do
 
       !Write the array (all ys for each x)
       write(100, '(*(f20.8))') &
         ((write_water(x, y), y = 1, y_extent), x = 1, x_extent)
 
+      deallocate(write_water)
     END IF
 
     !Update elapsed time and check for model termination
