@@ -212,8 +212,7 @@ PROGRAM DigiBog_Hydro
   REAL(KIND=q), ALLOCATABLE, DIMENSION(:,:) :: base_altitude, & !Above datum
                                                water_change, &
                                                water_table, &   !Above base
-                                               wk_mean, &       !Depth-av. K
-                                               write_water      !Temp array for water table
+                                               wk_mean          !Depth-av. K
 
   !layer_attributes stores layer thickness, K and s
   !transmissivity stores layer elevation above base and transmissivity
@@ -300,11 +299,11 @@ PROGRAM DigiBog_Hydro
   WRITE (*, '(A19, I4, A8)')  "x extent =         ", x_extent, " columns"
   WRITE (*, '(A19, I4, A8)')  "y extent =         ", y_extent, " columns"
   WRITE (*, '(A19, I4, A7)')  "z extent =         ", z_extent, " layers"
-  WRITE (*, '(A19, I5)')      "steady columns =   ", steady_columns
+  WRITE (*, '(A19, I10)')      "steady columns =   ", steady_columns
   WRITE (*, '(A19, F7.2, A3)')"spatial step =     ", spatial_step, " cm"
   WRITE (*, '(A19, F7.2, A3)')"ponding depth =    ", pond_depth, " cm"
   WRITE (*, '(A19, F6.3, A3)')"steady threshold = ", steady_threshold, " cm"
-  WRITE (*, '(A19, F4.2, A9)')"AET ext. param. =   ", n_aet, " unitless"
+  WRITE (*, '(A19, f6.3, A9)')"AET ext. param. =   ", n_aet, " unitless"
   WRITE (*, '(A19, f6.2, A3)')"AET ext. depth =    ", aet_extinct, " cm"
   WRITE (*, '(A31)') "Are these values correct (Y/N)?"
   READ *, param_error
@@ -475,27 +474,16 @@ PROGRAM DigiBog_Hydro
     IF (output_counter == output_interval) THEN
       !Re-set output counter
       output_counter = 0
-
-      !Create temporary output array. The array will be allocated inside the IF
-      !statement and deallocated outside of it.
-      allocate(write_water(x_extent, y_extent))
-
       !Write results to file
-      do x = 1, x_extent
-        do y = 1, y_extent
-          if (activation_status(x, y) /= "on") then
-            write_water(x, y) = -999.0
-          else
-            write_water(x, y) = water_table(x, y)
-          end if
-        end do
-      end do
-
-      !Write the array (all ys for each x)
-      write(100, '(*(f20.8))') &
-        ((write_water(x, y), y = 1, y_extent), x = 1, x_extent)
-
-      deallocate(write_water)
+      DO x = 1, x_extent
+        DO y = 1, y_extent
+          IF(activation_status (x,y) /= "on") then
+            WRITE(100, '(20F20.8)') -999.0
+          ELSE
+            WRITE(100, '(20F20.8)') water_table(x,y)
+          END IF
+        END DO
+      END DO
     END IF
 
     !Update elapsed time and check for model termination
