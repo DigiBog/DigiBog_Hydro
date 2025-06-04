@@ -288,7 +288,7 @@ PROGRAM DigiBog_Hydro
   read (10, *) n_aet
   read (10, *) aet_extinct
 
-  n_aet = n_aet / 100.0_q
+  if (n_aet >= 1) n_aet = n_aet / 100.0_q
 
   !Error check on data
   WRITE (*, *) "The following parameter values have been read from ", &
