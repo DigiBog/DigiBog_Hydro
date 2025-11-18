@@ -288,7 +288,8 @@ PROGRAM DigiBog_Hydro
   read (10, *) n_aet
   read (10, *) aet_extinct
 
-  if (n_aet > 10) n_aet = n_aet / 100.0_q
+  # Temp fix for Python GUI because it needs integers when loading parameters
+  if (n_aet > 99) n_aet = n_aet / 100.0_q
 
   !Error check on data
   WRITE (*, *) "The following parameter values have been read from ", &
