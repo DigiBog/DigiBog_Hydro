@@ -16,6 +16,7 @@ MODULE hydro_procedures
   !Define a real kind type q with at least 8 decimal digits and an exponent
   !range from 10**30 to 10**(-30)
   INTEGER, PARAMETER :: q = SELECTED_REAL_KIND(P = 8, R = 30)
+  real(q), parameter :: real_tol = 1.0e-9_q
 
   contains
 
@@ -203,7 +204,8 @@ MODULE hydro_procedures
           ELSE
             DO z = 1, (no_layers(x, y) - 2)
               !If water table equal to height of layer z
-              IF (water_table(x, y) == transmissivity(x, y, z, 1)) THEN
+              IF (abs(water_table(x, y) - transmissivity(x, y, z, 1)) <= &
+                real_tol) THEN
                 wk_mean(x, y) = transmissivity(x, y, z, 2) &
                               / transmissivity(x, y ,z ,1)
               !If water table above top of layer z
@@ -449,7 +451,8 @@ MODULE hydro_procedures
                                                                         THEN
               z = marker
               !If water table at top of layer z
-              IF (water_table(x, y) == layer_storage(x, y, z, 1)) THEN
+              IF (abs(water_table(x, y) - layer_storage(x, y, z, 1)) <= &
+                real_tol) THEN
                 !No storage available - advance to next layer
                 z = z + 1
               END IF
