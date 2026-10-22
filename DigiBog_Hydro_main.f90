@@ -625,6 +625,27 @@ PROGRAM DigiBog_Hydro
       END IF
     END IF
 
+    !>Store every timestep's water table so that a median over the day can
+    !>be formed. Unlike the mean this cannot be accumulated as it goes, so
+    !>the whole day is held in wt_day.
+    IF (output_stat == 3) THEN
+      day_step = day_step + 1
+      wt_day(day_step, :, :) = water_table
+      !>A whole day has elapsed. Form the median for each active cell and
+      !>hold it in wt_write until a write out asks for it. Inactive cells
+      !>are written as -999.0 by the write out, so are skipped here.
+      IF (day_step == daily_timesteps) THEN
+        DO x = 1, x_extent
+          DO y = 1, y_extent
+            IF (activation_status(x, y) == "on") THEN
+              wt_write(x, y) = day_median(wt_day(:, x, y))
+            END IF
+          END DO
+        END DO
+        day_step = 0
+      END IF
+    END IF
+
     !Check for model write out
     output_counter = output_counter + 1
     IF (output_counter == output_interval) THEN
