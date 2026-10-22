@@ -235,7 +235,7 @@ MODULE hydro_procedures
   SUBROUTINE move_water(x_extent, y_extent, timestep, spatial_step, rainfall, &
                         base_altitude, water_change, water_table, wk_mean, &
                         activation_status, no_layers, layer_storage, pet, &
-                        n_aet, aet_extinct, is_gully)
+                        n_aet, aet_extinct, is_restore)
 
     !This subroutine calculates the net movement of water (expressed as a depth)
     !between columns. It is assumed that a harmonic mean operates between the
@@ -266,7 +266,7 @@ MODULE hydro_procedures
     REAL(KIND=q), DIMENSION(:,:), INTENT(INOUT) :: water_change
 
     !Gully status
-    logical, dimension(:, :), intent(in) :: is_gully
+    logical, dimension(:, :), intent(in) :: is_restore
 
     !Local scalars
     INTEGER :: x, y
@@ -374,7 +374,7 @@ MODULE hydro_procedures
             peat_surf = layer_storage(x, y, (no_layers(x, y) - 1), 1)
 
             !Is the coulmn a gully?
-            if (.not. is_gully(x, y)) then
+            if (.not. is_restore(x, y)) then
               wtd = peat_surf - water_table(x, y)
               net_rainfall = rainfall - aet(wtd, pet, n_aet, aet_extinct)
             else

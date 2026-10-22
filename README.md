@@ -12,6 +12,10 @@ produces an optimised version of the model code to improve runtimes. The second
 executables and make -f [filename] clean removes the executable and *.o and
 *.mod files.
 
+There is also a makefile that produces an exe file for Windows machines. 
+It's called Make_DB_H_crosscompile and uses a crosscompiler with slightly 
+different compiler flags from the above versions for Windows compatibility.
+
 Please note this repository is for DigiBog_Hydro: this model does not simulate
 the accumulation or loss of peat. It can simulate water-table dynamics over 
 peatland landscapes and can be used to explore how different types of management 

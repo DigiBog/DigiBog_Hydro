@@ -80,6 +80,11 @@ PROGRAM DigiBog_Hydro
   !----------------------------------------------------------------------------
   !Dylan M. Young       17/10/2024     Added aet function to hydro_procedures
   !----------------------------------------------------------------------------
+  !Dylan M. Young       07/08/2026     Added optional output_stat parameter,
+  !                                    allowing the daily mean water table to
+  !                                    be written instead of the water table
+  !                                    at the end of the output interval.
+  !----------------------------------------------------------------------------
 
   !Model data
 
@@ -89,7 +94,15 @@ PROGRAM DigiBog_Hydro
   !and all source files. The input files are:
 
   !hydro_parameters.txt
-  !This file contains all the scalar parameters used in the model
+  !This file contains all the scalar parameters used in the model. The final
+  !line, output_stat, is optional: 1 (or an absent line) writes the water
+  !table at the end of each output interval, which is what all earlier
+  !versions did; 2 writes the mean water table over the day. Parameter files
+  !written before this option existed therefore still run unchanged.
+  !When output_stat is 2 the statistic always covers a whole day, and
+  !output_interval must be a whole number of days. output_interval then
+  !decides which daily means are written: set it to ten days and the means
+  !for day 10, day 20 and so on are written, not the mean of those ten days.
 
   !hydro_no_layers.txt
   !This file contains the number of layers to be used in each vertical,
@@ -133,7 +146,9 @@ PROGRAM DigiBog_Hydro
 
   !hydro_wt_output.txt
   !This file records the water-table position, relative to the impermeable
-  !base, at the end of each write-out period
+  !base, at the end of each write-out period. If output_stat is 2 it instead
+  !records the mean water-table position over the day that has just ended.
+  !Columns which are not active are written as -999.0 in either case.
 
   !hydro_x_indices.txt
   !This file records the x position of each column, at the end of the
@@ -172,7 +187,10 @@ PROGRAM DigiBog_Hydro
              x, &               !Spatial index counter
              y, &               !Spatial index counter
              z, &               !Spatial index counter
-             steady_columns     !Threshold number of steady columns
+             steady_columns, &  !Threshold number of steady columns
+             output_stat, &     !Water-table statistic written to file
+             day_step, &        !Timesteps elapsed in the current day
+             io_stat            !iostat flag for optional parameter reads
 
   REAL(KIND=q) :: timestep, &         !Model temporal hincrement
                   spatial_step, &     !Model horizontal increment
@@ -208,14 +226,16 @@ PROGRAM DigiBog_Hydro
                        data_file_name_14    !AET status for gully water
 
   !Global/local arrays
-  logical, allocatable, dimension(:, :) :: is_gully
+  logical, allocatable, dimension(:, :) :: is_restore
 
   INTEGER, ALLOCATABLE, DIMENSION(:,:) :: no_layers !Number of layers per column
 
   REAL(KIND=q), ALLOCATABLE, DIMENSION(:,:) :: base_altitude, & !Above datum
                                                water_change, &
                                                water_table, &   !Above base
-                                               wk_mean          !Depth-av. K
+                                               wk_mean, &       !Depth-av. K
+                                               wt_write, &      !Values written
+                                               wt_sum           !Running day sum
 
   !layer_attributes stores layer thickness, K and s
   !transmissivity stores layer elevation above base and transmissivity
@@ -227,7 +247,7 @@ PROGRAM DigiBog_Hydro
 
   !activation_status indicates whether/how column participates in simulation
   CHARACTER(8), ALLOCATABLE, DIMENSION(:,:) :: activation_status
-  integer, ALLOCATABLE, DIMENSION(:,:) :: gully_status
+  integer, ALLOCATABLE, DIMENSION(:,:) :: restore_status
 
 
 !-------------------------------------------------------------------------------
@@ -248,7 +268,7 @@ PROGRAM DigiBog_Hydro
   data_file_name_11 = "hydro_x_indices.txt"
   data_file_name_12 = "hydro_y_indices.txt"
   data_file_name_13 = "hydro_pet.txt"
-  data_file_name_14 = "hydro_aet_status.txt"
+  data_file_name_14 = "hydro_restore_status.txt"
 
   !Open files for input of data and file for output of data
   open(unit=10,  file=data_file_name_1,  status="old")
@@ -297,6 +317,51 @@ PROGRAM DigiBog_Hydro
   !Temp fix for Python GUI because it needs integers when loading parameters
   if (n_aet > 99) n_aet = n_aet / 100.0_q
 
+  !>Statistic written to the water-table output file:
+  !>  1 = water table at the end of the output interval (the behaviour of
+  !>      all earlier versions)
+  !>  2 = mean water table over a day
+  !>This is an optional final line in the parameter file. It is read with
+  !>iostat so that the twelve-line parameter files written before the
+  !>option existed still run, and still give the earlier behaviour.
+  read (10, *, iostat=io_stat) output_stat
+  if (io_stat /= 0) output_stat = 1
+
+  !>Sanity checks on the timing parameters. These guard the arithmetic
+  !>used to decide when a day has elapsed; MOD is undefined with a zero
+  !>second argument.
+  if (daily_timesteps <= 0) then
+    write (*, *) "tsteps per day must be greater than zero ", &
+                 "- model terminating"
+    stop
+  end if
+
+  if (output_interval <= 0) then
+    write (*, *) "output interval must be greater than zero ", &
+                 "- model terminating"
+    stop
+  end if
+
+  if (output_stat < 1 .or. output_stat > 2) then
+    write (*, *) "output stat must be 1 (snapshot) or 2 (daily mean) ", &
+                 "- model terminating"
+    stop
+  end if
+
+  !>The daily mean can only be written on a day boundary, so every write
+  !>must fall on one. Requiring the output interval to be a whole number of
+  !>days guarantees that.
+  if (output_stat == 2 .and. mod(output_interval, daily_timesteps) /= 0) then
+    write (*, *) "output interval must be a whole number of days when ", &
+                 "output stat = 2 - model terminating"
+    stop
+  end if
+
+  if (output_interval > t_extent) then
+    write (*, *) "Warning: output interval is longer than the runtime ", &
+                 "- no results will be written"
+  end if
+
   !Error check on data
   WRITE (*, *) "The following parameter values have been read from ", &
                 data_file_name_1
@@ -312,6 +377,15 @@ PROGRAM DigiBog_Hydro
   WRITE (*, '(A19, F6.3, A3)')"steady threshold = ", steady_threshold, " cm"
   WRITE (*, '(A19, f6.3, A9)')"AET ext. param. =   ", n_aet, " unitless"
   WRITE (*, '(A19, f6.2, A3)')"AET ext. depth =    ", aet_extinct, " cm"
+  WRITE (*, '(A19, I4, A20)') "output stat =      ", output_stat, &
+                              " 1=snapshot 2=mean"
+
+  !>The output interval is given in timesteps, so echo what that means in
+  !>days when a daily statistic has been asked for.
+  IF (output_stat == 2) THEN
+    WRITE (*, '(A19, I4, A6)')"mean written every ", &
+                              output_interval / daily_timesteps, " days"
+  END IF
   WRITE (*, '(A31)') "Are these values correct (Y/N)?"
   READ *, param_error
   SELECT CASE (param_error)
@@ -356,6 +430,21 @@ PROGRAM DigiBog_Hydro
     STOP
   END IF
 
+  ALLOCATE(wt_write(x_extent, y_extent), STAT=alloc_error)
+  IF (alloc_error /= 0) THEN
+    WRITE (*, *) "Model could not allocate space for wt_write"
+    STOP
+  END IF
+
+  !>Running total of the water table over the current day, used to form the
+  !>daily mean. Reset at every day boundary whether or not a write happens,
+  !>because the statistic is always a whole day.
+  ALLOCATE(wt_sum(x_extent, y_extent), STAT=alloc_error)
+  IF (alloc_error /= 0) THEN
+    WRITE (*, *) "Model could not allocate space for wt_sum"
+    STOP
+  END IF
+
   ALLOCATE(layer_attributes(x_extent, y_extent, z_extent, 3), &
                                                       STAT = alloc_error)
   IF (alloc_error /= 0) THEN
@@ -381,15 +470,15 @@ PROGRAM DigiBog_Hydro
     STOP
   END IF
 
-  ALLOCATE(gully_status(x_extent, y_extent), STAT=alloc_error)
+  ALLOCATE(restore_status(x_extent, y_extent), STAT=alloc_error)
   IF (alloc_error /= 0) THEN
     WRITE (*, *) "Model could not allocate space for gully status"
     STOP
   END IF
 
-  ALLOCATE(is_gully(x_extent, y_extent), STAT=alloc_error)
+  ALLOCATE(is_restore(x_extent, y_extent), STAT=alloc_error)
   IF (alloc_error /= 0) THEN
-    WRITE (*, *) "Model could not allocate space for is_gully"
+    WRITE (*, *) "Model could not allocate space for is_restore"
     STOP
   END IF
 
@@ -400,7 +489,7 @@ PROGRAM DigiBog_Hydro
       !Incorporate above-ground storage layer
       no_layers (x, y) = no_layers(x, y) + 1
       READ (60, *) activation_status(x, y)
-      READ (65, *) gully_status(x, y)
+      READ (65, *) restore_status(x, y)
       READ (70, *) water_table(x, y)
       READ (80, *) base_altitude(x, y)
     END DO
@@ -409,9 +498,9 @@ PROGRAM DigiBog_Hydro
   !Initialise layer_attributes
   layer_attributes = 0.0
 
-  !Initialise is_gully
-  is_gully = .false.
-  is_gully = gully_status == 1
+  !Initialise is_restore
+  is_restore = .false.
+  is_restore = restore_status == 1
 
   DO x = 1, x_extent
     DO y = 1, y_extent
@@ -438,12 +527,17 @@ PROGRAM DigiBog_Hydro
   wk_mean = 1.0
   transmissivity = 1.0
   layer_storage = 1.0
+  wt_write = 0.0_q
+  wt_sum = 0.0_q
 
   !Initialise elapsed time
   time_counter = 0
 
   !Initialise check counter for write out
   output_counter = 0
+
+  !Initialise counter for timesteps elapsed within the current day
+  day_step = 0
 
   !Calculate value of timestep in seconds
   timestep = (1.0_q/daily_timesteps) * mins_per_day
@@ -481,7 +575,7 @@ PROGRAM DigiBog_Hydro
     CALL move_water(x_extent, y_extent, timestep, spatial_step, rainfall, &
                         base_altitude, water_change, water_table, wk_mean, &
                         activation_status, no_layers, layer_storage, pet, &
-                        n_aet, aet_extinct, is_gully)
+                        n_aet, aet_extinct, is_restore)
 
     !Check for steady-state hydrological behaviour
     !CALL steady_state_check(x_extent, y_extent, steady_columns, &
@@ -493,18 +587,39 @@ PROGRAM DigiBog_Hydro
                             water_table, layer_attributes, layer_storage, &
                             activation_status)
 
+    !>Accumulate the water table so that a mean over the day can be formed.
+    !>day_step is deliberately a counter of its own and not a reuse of
+    !>rain_counter: rain_counter is incremented after this point and after
+    !>the termination check, so it holds daily_timesteps - 1 at write out and
+    !>is never incremented on the final timestep of the run.
+    IF (output_stat == 2) THEN
+      wt_sum = wt_sum + water_table
+      day_step = day_step + 1
+      !>A whole day has elapsed. Form the mean and hold it in wt_write until
+      !>a write out asks for it, then start the next day. The output interval
+      !>is required to be a whole number of days, so any write in this same
+      !>timestep picks up a mean formed here rather than a stale one.
+      IF (day_step == daily_timesteps) THEN
+        wt_write = wt_sum / REAL(daily_timesteps, q)
+        wt_sum = 0.0_q
+        day_step = 0
+      END IF
+    END IF
+
     !Check for model write out
     output_counter = output_counter + 1
     IF (output_counter == output_interval) THEN
       !Re-set output counter
       output_counter = 0
+      !>Snapshot of the water table at the end of the output interval
+      if (output_stat == 1) wt_write = water_table
       !Write results to file
       DO x = 1, x_extent
         DO y = 1, y_extent
           IF(activation_status (x,y) /= "on") then
             WRITE(100, '(20F20.8)') -999.0
           ELSE
-            WRITE(100, '(20F20.8)') water_table(x,y)
+            WRITE(100, '(20F20.8)') wt_write(x,y)
           END IF
         END DO
       END DO

@@ -1,0 +1,47 @@
+#Makefile for DigiBog_Hydro 3-D hydrological model
+#Cross-compiles a Windows (x86_64) executable on macOS or Linux
+#Dylan Young
+#Date: 16th October 2026
+#Based on Make_hydro_run
+#Requires the MinGW-w64 cross-compiler, e.g. '$ brew install mingw-w64'
+#Usage: '$ make -f DigiBog_Hydro_crosscompile'
+#===============================================================================
+#Set the cross-compiler
+FC := x86_64-w64-mingw32-gfortran
+FCFLAGS = -c -Wall -Wextra -Wimplicit-interface -fmax-errors=1 -O2 \
+  -ffast-math -funroll-loops -Wno-uninitialized
+#Link statically so the exe does not need the gfortran runtime DLLs
+LDFLAGS = -static
+#Executable name
+NAME = DigiBog_hydro.exe
+#Object and module files go in their own directory so they do not clash with
+#the macOS/Linux .o and .mod files made by Make_hydro_run
+OBJDIR = build_win
+
+#Read in source (f90) files and identify as object files
+OBJECT1 := $(patsubst %.f90,$(OBJDIR)/%.o,$(wildcard DigiBog_Hydro*_procs*.f90))
+OBJECT2 := $(patsubst %.f90,$(OBJDIR)/%.o,$(wildcard DigiBog_Hydro*_main*.f90))
+
+#Main program
+all: $(NAME)
+
+#Link object files
+$(NAME): $(OBJECT1) $(OBJECT2)
+	$(FC) $(LDFLAGS) $^ -o $@
+
+#Dependencies. main uses the module in procs, so procs is compiled first
+$(OBJECT2): $(OBJECT1)
+
+#Compile f90 files into object files. -J puts the .mod file in OBJDIR and
+#also searches there for it
+$(OBJDIR)/%.o: %.f90 | $(OBJDIR)
+	$(FC) $(FCFLAGS) -J$(OBJDIR) $< -o $@
+
+$(OBJDIR):
+	mkdir -p $@
+
+#File extensions for '$ make -f DigiBog_Hydro_crosscompile clean'
+.PHONY: all clean
+
+clean:
+	rm -rf $(NAME) $(OBJDIR)
