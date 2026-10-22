@@ -237,6 +237,10 @@ PROGRAM DigiBog_Hydro
                                                wt_write, &      !Values written
                                                wt_sum           !Running day sum
 
+  !>Every timestep's water table over the current day, used to form the
+  !>daily median. Timesteps come first so each cell's day is contiguous.
+  REAL(KIND=q), ALLOCATABLE, DIMENSION(:,:,:) :: wt_day
+
   !layer_attributes stores layer thickness, K and s
   !transmissivity stores layer elevation above base and transmissivity
   !layer_storage stores layer elevation above base and each layer's water
@@ -321,6 +325,7 @@ PROGRAM DigiBog_Hydro
   !>  1 = water table at the end of the output interval (the behaviour of
   !>      all earlier versions)
   !>  2 = mean water table over a day
+  !>  3 = median water table over a day
   !>This is an optional final line in the parameter file. It is read with
   !>iostat so that the twelve-line parameter files written before the
   !>option existed still run, and still give the earlier behaviour.
@@ -342,18 +347,18 @@ PROGRAM DigiBog_Hydro
     stop
   end if
 
-  if (output_stat < 1 .or. output_stat > 2) then
-    write (*, *) "output stat must be 1 (snapshot) or 2 (daily mean) ", &
-                 "- model terminating"
+  if (output_stat < 1 .or. output_stat > 3) then
+    write (*, *) "output stat must be 1 (snapshot), 2 (daily mean) or ", &
+                 "3 (daily median) - model terminating"
     stop
   end if
 
-  !>The daily mean can only be written on a day boundary, so every write
-  !>must fall on one. Requiring the output interval to be a whole number of
-  !>days guarantees that.
-  if (output_stat == 2 .and. mod(output_interval, daily_timesteps) /= 0) then
+  !>The daily mean and median can only be written on a day boundary, so
+  !>every write must fall on one. Requiring the output interval to be a
+  !>whole number of days guarantees that.
+  if (output_stat >= 2 .and. mod(output_interval, daily_timesteps) /= 0) then
     write (*, *) "output interval must be a whole number of days when ", &
-                 "output stat = 2 - model terminating"
+                 "output stat = 2 or 3 - model terminating"
     stop
   end if
 
@@ -377,13 +382,17 @@ PROGRAM DigiBog_Hydro
   WRITE (*, '(A19, F6.3, A3)')"steady threshold = ", steady_threshold, " cm"
   WRITE (*, '(A19, f6.3, A9)')"AET ext. param. =   ", n_aet, " unitless"
   WRITE (*, '(A19, f6.2, A3)')"AET ext. depth =    ", aet_extinct, " cm"
-  WRITE (*, '(A19, I4, A20)') "output stat =      ", output_stat, &
-                              " 1=snapshot 2=mean"
+  WRITE (*, '(A19, I4, A27)') "output stat =      ", output_stat, &
+                              " 1=snapshot 2=mean 3=median"
 
   !>The output interval is given in timesteps, so echo what that means in
   !>days when a daily statistic has been asked for.
   IF (output_stat == 2) THEN
     WRITE (*, '(A19, I4, A6)')"mean written every ", &
+                              output_interval / daily_timesteps, " days"
+  END IF
+  IF (output_stat == 3) THEN
+    WRITE (*, '(A21, I4, A6)')"median written every ", &
                               output_interval / daily_timesteps, " days"
   END IF
   WRITE (*, '(A31)') "Are these values correct (Y/N)?"
@@ -443,6 +452,16 @@ PROGRAM DigiBog_Hydro
   IF (alloc_error /= 0) THEN
     WRITE (*, *) "Model could not allocate space for wt_sum"
     STOP
+  END IF
+
+  !>Day buffer for the daily median. It is large (586 MiB at 400 x 400 with
+  !>480 timesteps per day), so it is allocated only when asked for.
+  IF (output_stat == 3) THEN
+    ALLOCATE(wt_day(daily_timesteps, x_extent, y_extent), STAT=alloc_error)
+    IF (alloc_error /= 0) THEN
+      WRITE (*, *) "Model could not allocate space for wt_day"
+      STOP
+    END IF
   END IF
 
   ALLOCATE(layer_attributes(x_extent, y_extent, z_extent, 3), &

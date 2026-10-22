@@ -591,6 +591,72 @@ MODULE hydro_procedures
 
 
 !-------------------------------------------------------------------------------
+! Section 8.0   Median of a vector (daily median water table)
+!-------------------------------------------------------------------------------
+
+  !>Returns the median of a vector of reals. Used for the daily median
+  !>water table (output_stat = 3). The input is copied to a work array so
+  !>the caller's values are not reordered.
+  !>
+  !>The k-th smallest value, k = (n + 1) / 2, is found by quickselect with
+  !>Wirth's partitioning scheme. This takes linear time on average and,
+  !>unlike a Lomuto partition, does not slow to n**2 on repeated values.
+  !>Afterwards no value below position k exceeds work(k) and no value
+  !>above it is smaller, so for an even count the median is the mean of
+  !>work(k) and the smallest value above position k.
+  !>
+  !>@note
+  !>The caller must pass at least one value. The main program guarantees
+  !>this by rejecting daily_timesteps < 1.
+  !>@endnote
+  pure function day_median(values) result(med)
+
+    real(kind=q), dimension(:), intent(in) :: values
+    real(kind=q) :: med
+    !Locals
+    real(kind=q), dimension(size(values)) :: work
+    real(kind=q) :: pivot, temp
+    integer :: n, k, l, r, i, j
+
+    n = size(values)
+    work = values
+    k = (n + 1) / 2
+    l = 1
+    r = n
+    do while (l < r)
+      pivot = work(k)
+      i = l
+      j = r
+      do
+        do while (work(i) < pivot)
+          i = i + 1
+        end do
+        do while (pivot < work(j))
+          j = j - 1
+        end do
+        if (i <= j) then
+          temp = work(i)
+          work(i) = work(j)
+          work(j) = temp
+          i = i + 1
+          j = j - 1
+        end if
+        if (i > j) exit
+      end do
+      if (j < k) l = i
+      if (k < i) r = j
+    end do
+
+    if (mod(n, 2) == 1) then
+      med = work(k)
+    else
+      med = 0.5_q * (work(k) + minval(work(k + 1:n)))
+    end if
+
+  end function day_median
+
+
+!-------------------------------------------------------------------------------
 
 
 END MODULE hydro_procedures

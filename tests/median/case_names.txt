@@ -1,0 +1,12 @@
+n1
+n2
+odd3
+even4
+all_equal
+repeats11
+ties_mid6
+sorted480
+reverse480
+random480
+random481
+random1440

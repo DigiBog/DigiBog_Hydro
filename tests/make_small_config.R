@@ -41,7 +41,7 @@ k_layer    <- rep(0.001, n_cells)  # cm/s
 s_layer    <- rep(0.3, n_cells)    # drainable porosity
 wt_bc      <- rep(100.0, n_cells)  # cm above base
 baltitude  <- rep(0.0, n_cells)    # flat substrate
-aet_status <- rep(0, n_cells)      # no gully columns
+restore_status <- rep(0, n_cells)  # no restored columns
 
 # --- climate -----------------------------------------------------------
 # Rates in cm/s, held constant through each day. Varied between days so the
@@ -77,8 +77,8 @@ writeLines(format(wt_bc, scientific = FALSE),
            file.path(out_dir, "hydro_wt_bc_input.txt"))
 writeLines(format(baltitude, scientific = FALSE),
            file.path(out_dir, "hydro_baltitude.txt"))
-writeLines(as.character(aet_status),
-           file.path(out_dir, "hydro_aet_status.txt"))
+writeLines(as.character(restore_status),
+           file.path(out_dir, "hydro_restore_status.txt"))
 writeLines(formatC(rainfall, format = "e", digits = 12),
            file.path(out_dir, "hydro_rainfall.txt"))
 writeLines(formatC(pet, format = "e", digits = 12),
